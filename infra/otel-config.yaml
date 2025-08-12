@@ -1,0 +1,45 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        include_metadata: true
+
+processors:
+  cumulativetodelta:
+  resource:
+    attributes:
+      - key: _tenant_id
+        from_context: x-tenant-id
+        action: insert
+
+  transform:
+    metric_statements:
+      - context: resource
+        statements:
+          - set(attributes["tenant_id"], attributes["http.request.header.x-tenant-id"]) where attributes["http.request.header.x-tenant-id"] != nil
+      - context: datapoint
+        statements:
+          - set(attributes["tenant_id"], resource.attributes["tenant_id"]) where resource.attributes["tenant_id"] != nil
+
+exporters:
+  influxdb:
+    endpoint: http://influxdb:8086
+    token: "my-super-secret-auth-token"
+    org: "obs"
+    bucket: "metrics"
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [resource, cumulativetodelta, transform]
+      exporters: [influxdb]
+
+  telemetry:
+    logs:
+      level: "info"
