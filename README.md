@@ -1,4 +1,4 @@
-# Architecture
+# Observability
 This project has 5 components:
 1. Database
 2. Anomaly
