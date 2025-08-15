@@ -32,7 +32,7 @@ class MetricDataPoint(BaseModel):
 async def health():
     return {"status": "healthy"}
 
-@app.get("/api/v1/metrics/{tenant_id}", response_model=Dict[str, List[MetricDataPoint]])
+@app.get("/api/v1/metrics/{tenant_id}")
 async def get_metrics(tenant_id: str):
     flux_query = f'''
         from(bucket: "{INFLUXDB_BUCKET}")
@@ -45,19 +45,40 @@ async def get_metrics(tenant_id: str):
         result = query_api.query(query=flux_query)
         metrics = {}
         for table in result:
+            # Get measurement and tags
+            metric_name = table.records[0].get_measurement()
+            tags = table.records[0].values
+            tag_key = tuple(
+                sorted((k, v) for k, v in tags.items() if k not in ["_time", "_value", "_field", "_measurement"]))
+
+            # Initialize measurement group if not exists
+            if metric_name not in metrics:
+                metrics[metric_name] = []
+
+            # Create entry for this tag combination
+            tag_entry = {
+                "tags": dict(tag_key),
+                "data_points": []
+            }
+
+            # Append data points
             for record in table.records:
-                metric_name = record.get_measurement()
                 data_point = {
-                    "timestamp": record.get_time(),
+                    "timestamp": record.get_time().isoformat(),
                     "value": record.get_value()
                 }
-                metrics.setdefault(metric_name, []).append(data_point)
+                tag_entry["data_points"].append(data_point)
+
+            metrics[metric_name].append(tag_entry)
+
         return metrics
+    except IndexError:
+        return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/anomalies/{tenant_id}", response_model=Dict[str, List[MetricDataPoint]])
-async def get_metrics(tenant_id: str):
+async def get_anomalies(tenant_id: str):
     flux_query = f'''
         from(bucket: "{INFLUXDB_BUCKET}")
           |> range(start: -180s)
@@ -82,4 +103,4 @@ async def get_metrics(tenant_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

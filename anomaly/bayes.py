@@ -184,7 +184,7 @@ if __name__ == "__main__":
     model = BayesianNN(window_size, num_features, hidden_dim, output_dim)
 
     train_loader, x, y = get_training_data()
-    train_bnn(model, train_loader, epochs=100)
+    train_bnn(model, train_loader, epochs=1000, lr=0.5, num_samples=100)
     torch.save(model.state_dict(), 'model.pth')
     logging.info("Model training complete. Model saved to 'model.pth'")
 

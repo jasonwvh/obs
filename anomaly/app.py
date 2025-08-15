@@ -77,7 +77,7 @@ def detect(record, threshold_std=2.0):
     model.train()  # Switch to training mode
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)  # Use a small learning rate
     optimizer.zero_grad()
-    loss = elbo_loss(model, input_tensor, target_tensor, num_samples=3, num_data_points=1)
+    loss = elbo_loss(model, input_tensor, target_tensor, num_samples=100, num_data_points=1)
     loss.backward()
     optimizer.step()
     model.eval()  # Switch back to evaluation mode
@@ -126,8 +126,6 @@ def process_data():
                     anomaly_point = Point(record.get_measurement()) \
                         .tag("_tenant_id", record.values.get('_tenant_id')) \
                         .field("_anomalies", float(record.get_value())) \
-                        .field("epistemic_uncertainty", epistemic_uncertainty) \
-                        .field("aleatoric_uncertainty", aleatoric_uncertainty) \
                         .time(record.get_time())
                     write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=anomaly_point)
                     logging.info(f"Anomaly detected and written for tenant {record.values.get('_tenant_id')} at {record.get_time()}")
@@ -140,4 +138,4 @@ if __name__ == "__main__":
     initialize_buffer(WINDOW_SIZE)
     while True:
         process_data()
-        # time.sleep(60)
+        time.sleep(60)
